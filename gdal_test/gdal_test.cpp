@@ -7,6 +7,36 @@
 #include <iostream>
 
 
+
+//zamiana pixeli na wspolrzedne kartograficzne
+double * pixelToMap(double P, double L, double * adfGeoTransform) {
+	double tablicaWspl[2];
+
+	tablicaWspl[0] = adfGeoTransform[0] + adfGeoTransform[1] * P + adfGeoTransform[2] * L;
+	tablicaWspl[1] = adfGeoTransform[3] + adfGeoTransform[4] * P + adfGeoTransform[5] * L;
+
+	return tablicaWspl;
+
+}
+
+//operacja odwrotna  - kartograczine -> piksele
+double * mapToPixel(double X, double Y, double * adfGeoTransform) {
+
+
+	//liczone wyznacznikami
+	double W, Wx, Wy;
+	double tablicaPlx[2];
+
+	W = adfGeoTransform[1] * adfGeoTransform[5] - adfGeoTransform[4] * adfGeoTransform[2];
+	Wx = adfGeoTransform[5] * (X - adfGeoTransform[0]) - adfGeoTransform[2] * (Y - adfGeoTransform[3]);
+	Wy = adfGeoTransform[1] * (Y - adfGeoTransform[3]) - adfGeoTransform[4] * (X - adfGeoTransform[0]);
+
+	tablicaPlx[0] = Wx / W;
+	tablicaPlx[1] = Wy / W;
+
+	return tablicaPlx;
+}
+
 int main()
 {	
 	GDALDataset *poDataset;
@@ -44,20 +74,16 @@ int main()
 				adfGeoTransform[1], adfGeoTransform[5]);
 		}
 
-		//std::cout << "Podaj wspolrzedna P: ";
-		//std::cin >> Xw;
-		//std::cout << "Podaj wspolrzedna L: ";
-		//std::cin >> Yw;
+		//Tutaj prowadzacy poda wam innne punkty zamiast 10 i 15
+		double * result = pixelToMap(10, 15, adfGeoTransform);
+		printf("X: %0.6f, Y: %0.6f\n", result[0], result[1]);
 
-		Xw = 13.0;
-		Yw = 14.0;
-		W = adfGeoTransform[1] * adfGeoTransform[5] - adfGeoTransform[4] * adfGeoTransform[2];
-		Wx = adfGeoTransform[5] * (Xw - adfGeoTransform[0]) - adfGeoTransform[2] * (Yw - adfGeoTransform[3]);
-		Wy = adfGeoTransform[1] * (Yw - adfGeoTransform[3]) - adfGeoTransform[4] * (Xw - adfGeoTransform[0]);
+		// to co wyjdzie w funkcji wyzej wrzucacie zamiast 441320 ...
+		double* result2 = mapToPixel(441320, 3750420, adfGeoTransform);
+		printf("X: %0.6f, Y: %0.6f\n", result2[0], result2[1]);
 
-		Xp = Wx / W;
-		Yp = Wy / W;
-		//printf("Xp: %d\nYp: %d ", Xp, Yp);
+
+	
 
 		
 
