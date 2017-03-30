@@ -33,4 +33,7 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="\\mac\Home\Downloads\P3_Dane\roadsOSM.shp" />
+  </ItemGroup>
 </Project>

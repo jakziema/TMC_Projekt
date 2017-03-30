@@ -3,91 +3,79 @@
 
 #include "stdafx.h"
 #include "gdal_priv.h"
+#include "gdal.h"
 #include "cpl_conv.h"
 #include <iostream>
+#include "ogrsf_frmts.h"
 
-
-
-//zamiana pixeli na wspolrzedne kartograficzne
-double * pixelToMap(double P, double L, double * adfGeoTransform) {
-	double tablicaWspl[2];
-
-	tablicaWspl[0] = adfGeoTransform[0] + adfGeoTransform[1] * P + adfGeoTransform[2] * L;
-	tablicaWspl[1] = adfGeoTransform[3] + adfGeoTransform[4] * P + adfGeoTransform[5] * L;
-
-	return tablicaWspl;
-
-}
-
-//operacja odwrotna  - kartograczine -> piksele
-double * mapToPixel(double X, double Y, double * adfGeoTransform) {
-
-
-	//liczone wyznacznikami
-	double W, Wx, Wy;
-	double tablicaPlx[2];
-
-	W = adfGeoTransform[1] * adfGeoTransform[5] - adfGeoTransform[4] * adfGeoTransform[2];
-	Wx = adfGeoTransform[5] * (X - adfGeoTransform[0]) - adfGeoTransform[2] * (Y - adfGeoTransform[3]);
-	Wy = adfGeoTransform[1] * (Y - adfGeoTransform[3]) - adfGeoTransform[4] * (X - adfGeoTransform[0]);
-
-	tablicaPlx[0] = Wx / W;
-	tablicaPlx[1] = Wy / W;
-
-	return tablicaPlx;
-}
 
 int main()
-{	
-	GDALDataset *poDataset;
-	GDALAllRegister();
-	double adfGeoTransform[6];
-	double Xw, Yw, Xp, Yp, Wx, Wy, W;
-	
 
-	poDataset = (GDALDataset *)GDALOpen("C:\\Users\\Beata-MacBook\\Desktop\\TMC\\gdal_test\\landsat.tif", GA_ReadOnly);
+{
+	OGRRegisterAll();
 
-	if (poDataset == NULL) {
+	OGRDataSource       *poDS;
 
-		printf("Dataset is null");
+	poDS = OGRSFDriverRegistrar::Open("map.shp", FALSE);
+	if (poDS == NULL)
+	{
+		printf("Open failed.\n");
+		exit(1);
 	}
-	else {
-		
-		//adfGeoTransform[0] /* top left x */
-		//adfGeoTransform[1] /* w-e pixel resolution */
-		//adfGeoTransform[2] /* 0 */
-		//adfGeoTransform[3] /* top left y */
-		//adfGeoTransform[4] /* 0 */
-		//adfGeoTransform[5] /* n-s pixel resolution (negative value) */
+
+	OGRLayer  *poLayer;
+	int layers;
+	//layers = poDS->GetLayerCount();
+	poLayer = poDS->GetLayer(0);
+	//printf("Layers: %i ", layers);
+
 	
-		printf("Nazwa sterownika: %s%s\n", poDataset->GetDriver()->GetDescription(), poDataset->GetDriver()->GetMetadataItem(GDAL_DMD_LONGNAME));
-		printf("Rozmiar: %dx%d Liczba kanalow: %d\n",
-			poDataset->GetRasterXSize(), poDataset->GetRasterYSize(),
-			poDataset->GetRasterCount());
-		if (poDataset->GetProjectionRef() != NULL)
-			printf("Projection is `%s'\n", poDataset->GetProjectionRef());
-		if (poDataset->GetGeoTransform(adfGeoTransform) == CE_None)
+	//poLayer = poDS->GetLayerByName("bridge");
+
+
+	OGRFeature *poFeature;
+
+	poLayer->ResetReading();
+	while ((poFeature = poLayer->GetNextFeature()) != NULL)
+	{
+		OGRFeatureDefn *poFDefn = poLayer->GetLayerDefn();
+		int iField;
+
+		for (iField = 0; iField < poFDefn->GetFieldCount(); iField++)
 		{
-			printf("Origin = (%.6f,%.6f)\n",
-				adfGeoTransform[0], adfGeoTransform[3]);
-			printf("Pixel Size = (%.6f,%.6f)\n",
-				adfGeoTransform[1], adfGeoTransform[5]);
+			OGRFieldDefn *poFieldDefn = poFDefn->GetFieldDefn(iField);
+
+			if (poFieldDefn->GetType() == OFTInteger)
+				printf("%d,", poFeature->GetFieldAsInteger(iField));
+			else if (poFieldDefn->GetType() == OFTReal)
+				printf("%.3f,", poFeature->GetFieldAsDouble(iField));
+			else if (poFieldDefn->GetType() == OFTString)
+				printf("%s,", poFeature->GetFieldAsString(iField));
+			else
+				printf("%s,", poFeature->GetFieldAsString(iField));
 		}
 
-		//Tutaj prowadzacy poda wam innne punkty zamiast 10 i 15
-		double * result = pixelToMap(10, 15, adfGeoTransform);
-		printf("X: %0.6f, Y: %0.6f\n", result[0], result[1]);
+		OGRGeometry *poGeometry;
 
-		// to co wyjdzie w funkcji wyzej wrzucacie zamiast 441320 ...
-		double* result2 = mapToPixel(441320, 3750420, adfGeoTransform);
-		printf("X: %0.6f, Y: %0.6f\n", result2[0], result2[1]);
-
-
-	
-
-		
-
+		poGeometry = poFeature->GetGeometryRef();
+		if (poGeometry != NULL
+			&& wkbFlatten(poGeometry->getGeometryType()) == wkbPolygon)
+		{
+			OGRPolygon *poPoly = (OGRPolygon *)poGeometry;
+			//poPoly->
+				//mini xml
+			const char * name = poFeature->GetFieldAsString("NAME_1");
+			printf("A: %f  n: %s\n", (float)poPoly->get_Area(),name);
+		}
+		else
+		{
+			printf("no point geometry\n");
+		}
+		OGRFeature::DestroyFeature(poFeature);
 	}
 
+	OGRDataSource::DestroyDataSource(poDS);
+	
 }
+
 
